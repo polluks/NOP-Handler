@@ -1,5 +1,9 @@
 #ifdef __DEBUG__
-void kprintf(char *fmt, ...);
+	#ifdef __AROS__
+	#include <aros/debug.h>
+	#else
+	void kprintf(char *fmt, ...);
+	#endif
 #else
 #define kprintf(...)
 #endif

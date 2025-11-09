@@ -6,9 +6,11 @@
 #include <dos/filehandler.h>
 
 #include <stdint.h>
+#include <string.h>
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
+#include "OS4Compatibility.h"
 #include "Debug.h"
 
 struct NOPFile {
@@ -45,8 +47,7 @@ static struct ParseSizeResult ParseSize(const char *string);
 
 const char Version[] = "$VER: NOP-Handler 0.1 (9.11.2025) by Patrik Axelsson";
 
-void NOPHandler() {
-	struct ExecBase *SysBase = *(void **) 4;
+void NOPHandler(struct ExecBase *SysBase) {
 	struct Process *process = (struct Process *) FindTask(NULL);
 	struct MsgPort *handlerPort = &process->pr_MsgPort;
 
@@ -67,7 +68,7 @@ void NOPHandler() {
 	while (running) {
 		WaitPort(handlerPort);
 		struct DosPacket *packet = GetPacket(SysBase, handlerPort);
-		kprintf("%s(%ld), dp_Type: %ld, dp_Arg1: 0x%lx, dp_Arg2: %ld, dp_Arg3: 0x%lx\n", ActionToName(packet->dp_Type), packet->dp_Type, packet->dp_Arg1, packet->dp_Arg2, packet->dp_Arg3);
+		kprintf("%s(%ld), dp_Type: %ld, dp_Arg1: 0x%lx, dp_Arg2: 0x%lx, dp_Arg3: 0x%lx\n", ActionToName(packet->dp_Type), packet->dp_Type, packet->dp_Arg1, packet->dp_Arg2, packet->dp_Arg3);
 		switch (packet->dp_Type) {
 			// Implementing this stops workbench from asking ACTION_LOCATE_OBJECT,
 			// however it still keeps re-asking this repeatedly
@@ -78,12 +79,18 @@ void NOPHandler() {
 			case ACTION_FINDOUTPUT:
 			case ACTION_FINDUPDATE: {
 					kprintf("Opening: '%b'\n", packet->dp_Arg3);
+					#ifdef AROS_FAST_BSTR
+					const char *path = BADDR(packet->dp_Arg3);
+					unsigned pathLength = strlen(path);
+					#else
 					struct BString *bPath = BADDR(packet->dp_Arg3);
+					unsigned pathLength = bPath->length;
 					char path[256];
-					CopyMem(bPath->chars, path, bPath->length);
-					path[bPath->length] = '\0';
+					CopyMem(bPath->chars, path, pathLength);
+					path[pathLength] = '\0';
+					#endif
 					const char *afterDevice = AfterDevice(path);
-					unsigned afterDeviceLength = bPath->length - (afterDevice - path);
+					unsigned afterDeviceLength = pathLength - (afterDevice - path);
 					struct ParseSizeResult parseResult = ParseSize(afterDevice);
 					if (parseResult.charLength != afterDeviceLength) {
 						ReplyPacket(SysBase, packet, handlerPort, DOSFALSE, ERROR_BAD_NUMBER);
@@ -97,6 +104,7 @@ void NOPHandler() {
 					}
 
 					struct FileHandle *fileHandle = BADDR(packet->dp_Arg1);
+					fileHandle->fh_Port = 0; // Not interactive
 					fileHandle->fh_Arg1 = GetNOPFileIndex(&ctx, nopFile);
 					ReplyPacket(SysBase, packet, handlerPort, DOSTRUE, 0);
 					break;
@@ -218,7 +226,7 @@ static const char *AfterDevice(const char *path) {
 			return path;
 		}
 	}
-	return path;
+	return start;
 }
 
 /* Parses a string with a size consisting of a number followed by an optional

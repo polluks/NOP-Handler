@@ -2,6 +2,10 @@
 #include <exec/types.h>
 #include <dos/dosextens.h>
 
+#ifndef ACTION_UNDISK_INFO
+#define ACTION_UNDISK_INFO 513
+#endif
+
 const char *ActionToName(LONG action) {
 	switch (action) {
 		case ACTION_NIL            : return "ACTION_NIL";

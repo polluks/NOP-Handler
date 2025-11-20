@@ -233,7 +233,8 @@ static struct SizedString AfterDevice(struct SizedString path) {
 }
 
 /* Parses a string with a size consisting of a number followed by an optional
- * multyplying prefix 'K' (1024), 'M' (1048576) or G (1073741824).
+ * multyplying prefix 'K' (1024), 'M' (1048576), 'G' (1073741824) or
+ * 'T' (1099511627776).
  */
 static struct ParseSizeResult ParseSize(struct SizedString size) {
 	uint32_t number = 0;
@@ -244,6 +245,8 @@ static struct ParseSizeResult ParseSize(struct SizedString size) {
 		int digit = c - '0';
 		if (digit < 0 || digit > 9) {
 			switch (c) {
+				case 'T':
+					shiftBits += 10;
 				case 'G':
 					shiftBits += 10;
 				case 'M':

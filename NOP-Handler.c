@@ -21,7 +21,7 @@ struct NOPFile {
 };
 
 struct Context {
-	struct NOPFile nopFiles[16];
+	struct NOPFile nopFiles[64];
 };
 
 struct BCPLString {
